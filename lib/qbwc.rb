@@ -76,8 +76,8 @@ module QBWC
       const_get storage.to_s.camelize
     end
 
-    def jobs
-      storage_module::Job.list_jobs
+    def jobs(account_id)
+      storage_module::Job.list_jobs_with_account_id(account_id)
     end
 
     def add_job(name, enabled = true, company = nil, klass = QBWC::Worker, requests = nil, data = nil, account_id = nil)
@@ -93,8 +93,8 @@ module QBWC
       storage_module::Job.delete_job_with_name(name)
     end
 
-    def pending_jobs(company, session = QBWC::Session.get)
-      js = jobs
+    def pending_jobs(company, session = QBWC::Session.get, account_id)
+      js = jobs(account_id)
       QBWC.logger.info "#{js.length} jobs exist, checking for pending jobs for company '#{company}'."
       storage_module::Job.sort_in_time_order(js.select {|job| job.company == company && job.pending?(session)})
     end
