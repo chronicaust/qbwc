@@ -1,6 +1,6 @@
 class QBWC::Session
 
-  attr_reader :user, :company, :ticket, :progress
+  attr_reader :user, :company, :ticket, :progress, :account_id
   attr_accessor :error, :status_code, :status_severity
 
   @@session = nil
@@ -9,7 +9,7 @@ class QBWC::Session
 		@@session
 	end
 
-  def initialize(user = nil, company = nil, ticket = nil)
+  def initialize(user = nil, company = nil, ticket = nil, account_id = nil)
     @user = user
     @company = company
     @current_job = nil
@@ -17,7 +17,7 @@ class QBWC::Session
     @progress = 0
     @iterator_id = nil
     @initial_job_count = pending_jobs.length
-
+    @account_id = account_id
     @ticket = ticket || Digest::SHA1.hexdigest("#{Rails.application.config.secret_token}#{Time.now.to_i}")
 
     @@session = self
@@ -64,7 +64,7 @@ class QBWC::Session
       request.delete('xml_attributes')
       request.values.first['xml_attributes'] = {'iterator' => 'Continue', 'iteratorID' => self.iterator_id}
       request = QBWC::Request.new(request)
-    end 
+    end
     request
   end
 
@@ -121,7 +121,7 @@ class QBWC::Session
   end
 
   def pending_jobs
-    @pending_jobs ||= QBWC.pending_jobs(@company, self)
+    @pending_jobs ||= QBWC.pending_jobs(@company, self, @account_id)
   end
 
   def complete_with_success
@@ -142,7 +142,7 @@ class QBWC::Session
     return unless response.is_a?(Hash) && response['xml_attributes']
 
     @status_code, @status_severity, status_message, iterator_remaining_count, iterator_id = \
-      response['xml_attributes'].values_at('statusCode', 'statusSeverity', 'statusMessage', 
+      response['xml_attributes'].values_at('statusCode', 'statusSeverity', 'statusMessage',
                                                'iteratorRemainingCount', 'iteratorID')
     QBWC.logger.info "Parsed headers. statusSeverity: '#{status_severity}'. statusCode: '#{@status_code}'"
 
