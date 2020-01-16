@@ -16,8 +16,8 @@ class QBWC::Session
     @error = nil
     @progress = 0
     @iterator_id = nil
+    @account_id = User.find_by(email: user).account_id
     @initial_job_count = pending_jobs.length
-    @account_id = account_id
     @ticket = ticket || Digest::SHA1.hexdigest("#{Rails.application.config.secret_token}#{Time.now.to_i}")
 
     @@session = self

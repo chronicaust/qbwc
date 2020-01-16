@@ -22,7 +22,7 @@ class QBWC::ActiveRecord::Session < QBWC::Session
       @session.user = self.user
       @session.company = self.company
       @session.ticket = self.ticket
-      @session.account_id = self.account_id
+      @session.account_id = User.find_by(email: self.user).account_id
       self.save
       @session
     end
