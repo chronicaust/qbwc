@@ -9,10 +9,10 @@ module QBWC
 
     def self.included(base)
       base.class_eval do
-        soap_service
-        skip_before_action :_authenticate_wsse, :_map_soap_parameters, :only => :qwc
-        before_action :get_session, :except => [:qwc, :authenticate, :_generate_wsdl]
-        after_action :save_session, :except => [:qwc, :authenticate, :_generate_wsdl, :close_connection, :connection_error]
+        include WashOut::SOAP
+        skip_before_filter :_parse_soap_parameters, :_authenticate_wsse, :_map_soap_parameters, :only => :qwc
+        before_filter :get_session, :except => [:qwc, :authenticate, :_generate_wsdl]
+        after_filter :save_session, :except => [:qwc, :authenticate, :_generate_wsdl, :close_connection, :connection_error]
 
         # wash_out changed the format of app/views/wash_with_soap/rpc/response.builder in commit
         # https://github.com/inossidabile/wash_out/commit/24a77f4a3d874562732c6e8c3a30e8defafea7cb
@@ -77,7 +77,7 @@ SB
    <AppURL>#{qbwc_action_url(:only_path => false)}</AppURL>
    <AppDescription>Quickbooks integration</AppDescription>
    <AppSupport>#{QBWC.support_site_url || root_url(:protocol => 'https://')}</AppSupport>
-   <UserName>#{QBWC.username}</UserName>
+   <UserName>#{@username || QBWC.username}</UserName>
    <OwnerID>#{QBWC.owner_id}</OwnerID>
    <FileID>{#{file_id}}</FileID>
    <QBType>QBFS</QBType>
@@ -85,7 +85,7 @@ SB
    #{scheduler_block}
 </QBWCXML>
 QWC
-      send_data qwc, :filename => "#{Rails.application.class.parent_name}.qwc", :content_type => 'application/x-qwc'
+      send_data qwc, :filename => "#{@filename || Rails.application.class.parent_name}.qwc", :content_type => 'application/x-qwc'
     end
 
     class StringArray < WashOut::Type
@@ -162,7 +162,7 @@ QWC
     end
 
     def app_name
-      "#{Rails.application.class.parent_name} #{Rails.env}"
+      "#{Rails.application.class.parent_name} #{Rails.env} #{@app_name_suffix}"
     end
 
     def file_id

@@ -1,4 +1,4 @@
-class CreateQbwcJobs < ActiveRecord::Migration[5.0]
+class CreateQbwcJobs < ActiveRecord::Migration
   def change
     create_table :qbwc_jobs, :force => true do |t|
       t.string :name
