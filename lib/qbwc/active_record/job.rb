@@ -39,6 +39,13 @@ class QBWC::ActiveRecord::Job < QBWC::Job
     return j
   end
 
+  def self.find_job_with_name_and_account(name, account_id)
+    jobs = QbwcJob.where(:account_id => account_id)
+    j = jobs.where(:name => name).first 
+    j = j.to_qbwc_job unless j.nil?
+    return j
+  end
+
   def self.find_ar_job_with_name(name)
     QbwcJob.where(:name => name)
   end
