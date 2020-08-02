@@ -1,5 +1,8 @@
-.rvmrc 
+.rvmrc
 Gemfile.lock
 pkg
 .ruby-gemset
 .ruby-version
+.idea
+.rakeTasks
+.byebug_history

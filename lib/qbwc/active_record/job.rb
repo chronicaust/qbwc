@@ -1,6 +1,6 @@
 class QBWC::ActiveRecord::Job < QBWC::Job
   class QbwcJob < ActiveRecord::Base
-    validates :name, :uniqueness => true, :presence => true
+    validates :name, :uniqueness => { :case_sensitive => true }, :presence => true
     serialize :requests, Hash
     serialize :request_index, Hash
     serialize :data
@@ -41,7 +41,7 @@ class QBWC::ActiveRecord::Job < QBWC::Job
 
   def self.find_job_with_name_and_account(name, account_id)
     jobs = QbwcJob.where(:account_id => account_id)
-    j = jobs.where(:name => name).first 
+    j = jobs.where(:name => name).first
     j = j.to_qbwc_job unless j.nil?
     return j
   end

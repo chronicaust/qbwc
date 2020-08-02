@@ -32,8 +32,9 @@ Gem::Specification.new do |s|
   s.add_development_dependency('rspec')
   s.add_development_dependency('activerecord')
   s.add_development_dependency('actionpack')
-  s.add_development_dependency('rails', [">= 4.1.0"])
+  s.add_development_dependency('rails', [">= 5.0.1", '< 6.1'])
   s.add_development_dependency('sqlite3')
   s.add_development_dependency('minitest')
   s.add_development_dependency('rake')
+  s.add_development_dependency('byebug')
 end

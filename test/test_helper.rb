@@ -3,11 +3,25 @@ require 'bundler/setup'
 Bundler.setup
 
 require 'minitest/autorun'
+require 'byebug'
 
 require 'active_support'
 require 'active_record'
 require 'action_controller'
 require 'rails'
+
+# Determine location of local wash_out gem
+# https://github.com/rubygems/rubygems/blob/master/lib/rubygems/commands/which_command.rb
+require 'rubygems/commands/which_command'
+which_command = Gem::Commands::WhichCommand.new
+paths = which_command.find_paths('wash_out', $LOAD_PATH)
+wash_out_lib = File.dirname(paths[0])  # Alternate technique: File.dirname(`gem which wash_out`)
+
+# Add wash_out to autoload_paths so that WashOutHelper can be included directly
+# http://api.rubyonrails.org/classes/AbstractController/Helpers/ClassMethods.html#method-i-helper
+# http://guides.rubyonrails.org/autoloading_and_reloading_constants.html#require-dependency
+# http://guides.rubyonrails.org/autoloading_and_reloading_constants.html#autoload-paths
+ActiveSupport::Dependencies.autoload_paths << "#{wash_out_lib}/../app/helpers"
 
 $:<< File.expand_path(File.dirname(__FILE__) + '/../lib')
 require 'qbwc'
@@ -38,6 +52,10 @@ module QbwcTestApplication
     Rails.application.configure do
       config.secret_key_base = "stub"
       config.eager_load = false
+      if config.respond_to?(:hosts)
+        config.hosts << 'www.example.com'
+        config.hosts << ''
+      end
     end
     ActiveRecord::Base.establish_connection(:adapter => "sqlite3", :database => ":memory:")
     require '../qbwc/lib/generators/qbwc/install/templates/db/migrate/create_qbwc_jobs'
@@ -75,7 +93,7 @@ def _assign_routes
   # qbwc_action GET|POST   /qbwc/action            #<WashOut::Router:0x00000005cf46d0 @controller_name="QbwcController">
   wash_out :qbwc
 
-  # Route needed for test_qwc 
+  # Route needed for test_qwc
   get 'qbwc/action' => 'qbwc#action'
 
   get 'qbwc/authenticate' => 'qbwc#authenticate'
@@ -89,6 +107,8 @@ QbwcTestApplication::Application.routes.draw do
 end
 
 class QbwcController < ActionController::Base
+  protect_from_forgery with: :exception  # Must precede QWBC::Controller to emulate Rails load order
+
   include Rails.application.routes.url_helpers
   include QBWC::Controller
 end
@@ -176,12 +196,18 @@ AUTHENTICATE_WASH_OUT_SOAP_DATA = {
   }
 }
 
+SERVER_VERSION_PARAMS = {
+  :@xmlns      => "http://developer.intuit.com/"
+}
+
+SERVER_VERSION_SOAP_ACTION = :serverVersion
+
 SEND_REQUEST_PARAMS = {
   :qbXMLCountry   => "US",
   :qbXMLMajorVers => "13",
   :qbXMLMinorVers => "0",
   :ticket         => "acc277c2d9351c6da12345887293fc6a32860006",
-  :strHCPResponse => "<?xml version=\"1.0\" ?><QBXML><QBXMLMsgsRs><HostQueryRs requestID=\"0\" statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><HostRet><ProductName>QuickBooks Pro 2014</ProductName><MajorVersion>24</MajorVersion><MinorVersion>0</MinorVersion><Country>US</Country><SupportedQBXMLVersion>1.0</SupportedQBXMLVersion><SupportedQBXMLVersion>1.1</SupportedQBXMLVersion><SupportedQBXMLVersion>2.0</SupportedQBXMLVersion><SupportedQBXMLVersion>2.1</SupportedQBXMLVersion><SupportedQBXMLVersion>3.0</SupportedQBXMLVersion><SupportedQBXMLVersion>4.0</SupportedQBXMLVersion><SupportedQBXMLVersion>4.1</SupportedQBXMLVersion><SupportedQBXMLVersion>5.0</SupportedQBXMLVersion><SupportedQBXMLVersion>6.0</SupportedQBXMLVersion><SupportedQBXMLVersion>7.0</SupportedQBXMLVersion><SupportedQBXMLVersion>8.0</SupportedQBXMLVersion><SupportedQBXMLVersion>9.0</SupportedQBXMLVersion><SupportedQBXMLVersion>10.0</SupportedQBXMLVersion><SupportedQBXMLVersion>11.0</SupportedQBXMLVersion><SupportedQBXMLVersion>12.0</SupportedQBXMLVersion><SupportedQBXMLVersion>13.0</SupportedQBXMLVersion><IsAutomaticLogin>false</IsAutomaticLogin><QBFileMode>SingleUser</QBFileMode></HostRet></HostQueryRs><CompanyQueryRs requestID=\"1\" statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><CompanyRet><IsSampleCompany>false</IsSampleCompany><CompanyName>myCompany</CompanyName><LegalCompanyName>myCompany Legal Name</LegalCompanyName><Address><City>P.O. Box 12345</City><State>CA</State><PostalCode>12345</PostalCode><Country>US</Country></Address><AddressBlock><Addr1>P.O. Box 12345</Addr1><Addr2>CA 12345</Addr2></AddressBlock><LegalAddress><Addr1>P.O. Box 12345</Addr1><City>Anytown</City><State>CA</State><PostalCode>12345</PostalCode><Country>US</Country></LegalAddress><Phone>800-123-4567</Phone><Email>myname@mydomain.com</Email><FirstMonthFiscalYear>January</FirstMonthFiscalYear><FirstMonthIncomeTaxYear>January</FirstMonthIncomeTaxYear><CompanyType>InformationTechnologyComputersSoftware</CompanyType><EIN>12-3456789</EIN><TaxForm>Form1120</TaxForm><SubscribedServices><Service><Name>QuickBooks Online Banking</Name><Domain>banking.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing</Name><Domain>billing.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Level 1 Service</Name><Domain>qbob1.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Level 2 Service</Name><Domain>qbob2.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Payment Service</Name><Domain>qbobpay.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Bill Payment</Name><Domain>billpay.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Paper Mailing Service</Name><Domain>qbobpaper.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Payroll Service</Name><Domain>payroll.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Basic Payroll Service</Name><Domain>payrollbsc.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Basic Disk Payroll Service</Name><Domain>payrollbscdisk.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Deluxe Payroll Service</Name><Domain>payrolldlx.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Premier Payroll Service</Name><Domain>payrollprm.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Basic Plus Federal</Name><Domain>basic_plus_fed.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Basic Plus Federal and State</Name><Domain>basic_plus_fed_state.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Basic Plus Direct Deposit</Name><Domain>basic_plus_dd.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Merchant Account Service</Name><Domain>mas.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service></SubscribedServices><AccountantCopy><AccountantCopyExists>false</AccountantCopyExists></AccountantCopy><DataExtRet><OwnerID>{512349B1-1111-2222-3333-000DE1813D20}</OwnerID><DataExtName>AppLock</DataExtName><DataExtType>STR255TYPE<yzer/DataExtType><DataExtValue>LOCKED:REDACTED:631234599990000223</DataExtValue></DataExtRet><DataExtRet><OwnerID>{512349B1-1111-2222-3333-000DE1813D20}</OwnerID><DataExtName>FileID</DataExtName><DataExtType>STR255TYPE</DataExtType><DataExtValue>{00000ee-1111-ffff-cccc-5ff123456047}</DataExtValue></DataExtRet></CompanyRet></CompanyQueryRs><PreferencesQueryRs requestID=\"2\" statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><PreferencesRet><AccountingPreferences><IsUsingAccountNumbers>false</IsUsingAccountNumbers><IsRequiringAccounts>true</IsRequiringAccounts><IsUsingClassTracking>false</IsUsingClassTracking><IsUsingAuditTrail>true</IsUsingAuditTrail><IsAssigningJournalEntryNumbers>true</IsAssigningJournalEntryNumbers></AccountingPreferences><FinanceChargePreferences><AnnualInterestRate>0.00</AnnualInterestRate><MinFinanceCharge>0.00</MinFinanceCharge><GracePeriod>0</GracePeriod><IsAssessingForOverdueCharges>false</IsAssessingForOverdueCharges><CalculateChargesFrom>DueDate</CalculateChargesFrom><IsMarkedToBePrinted>false</IsMarkedToBePrinted></FinanceChargePreferences><JobsAndEstimatesPreferences><IsUsingEstimates>true</IsUsingEstimates><IsUsingProgressInvoicing>false</IsUsingProgressInvoicing><IsPrintingItemsWithZeroAmounts>false</IsPrintingItemsWithZeroAmounts></JobsAndEstimatesPreferences><MultiCurrencyPreferences><IsMultiCurrencyOn>false</IsMultiCurrencyOn></MultiCurrencyPreferences><MultiLocationInventoryPreferences><IsMultiLocationInventoryAvailable>false</IsMultiLocationInventoryAvailable><IsMultiLocationInventoryEnabled>false</IsMultiLocationInventoryEnabled></MultiLocationInventoryPreferences><PurchasesAndVendorsPreferences><IsUsingInventory>false</IsUsingInventory><DaysBillsAreDue>10</DaysBillsAreDue><IsAutomaticallyUsingDiscounts>false</IsAutomaticallyUsingDiscounts></PurchasesAndVendorsPreferences><ReportsPreferences><AgingReportBasis>AgeFromDueDate</AgingReportBasis><SummaryReportBasis>Accrual</SummaryReportBasis></ReportsPreferences><SalesAndCustomersPreferences><IsTrackingReimbursedExpensesAsIncome>false</IsTrackingReimbursedExpensesAsIncome><IsAutoApplyingPayments>true</IsAutoApplyingPayments><PriceLevels><IsUsingPriceLevels>true</IsUsingPriceLevels><IsRoundingSalesPriceUp>true</IsRoundingSalesPriceUp></PriceLevels></SalesAndCustomersPreferences><TimeTrackingPreferences><FirstDayOfWeek>Monday</FirstDayOfWeek></TimeTrackingPreferences><CurrentAppAccessRights><IsAutomaticLoginAllowed>false</IsAutomaticLoginAllowed><IsPersonalDataAccessAllowed>false</IsPersonalDataAccessAllowed></CurrentAppAccessRights><ItemsAndInventoryPreferences><EnhancedInventoryReceivingEnabled>false</EnhancedInventoryReceivingEnabled><IsTrackingSerialOrLotNumber>None</IsTrackingSerialOrLotNumber><FIFOEnabled>false</FIFOEnabled><IsRSBEnabled>false</IsRSBEnabled><IsBarcodeEnabled>false</IsBarcodeEnabled></ItemsAndInventoryPreferences></PreferencesRet></PreferencesQueryRs></QBXMLMsgsRs></QBXML>", 
+  :strHCPResponse => "<?xml version=\"1.0\" ?><QBXML><QBXMLMsgsRs><HostQueryRs requestID=\"0\" statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><HostRet><ProductName>QuickBooks Pro 2014</ProductName><MajorVersion>24</MajorVersion><MinorVersion>0</MinorVersion><Country>US</Country><SupportedQBXMLVersion>1.0</SupportedQBXMLVersion><SupportedQBXMLVersion>1.1</SupportedQBXMLVersion><SupportedQBXMLVersion>2.0</SupportedQBXMLVersion><SupportedQBXMLVersion>2.1</SupportedQBXMLVersion><SupportedQBXMLVersion>3.0</SupportedQBXMLVersion><SupportedQBXMLVersion>4.0</SupportedQBXMLVersion><SupportedQBXMLVersion>4.1</SupportedQBXMLVersion><SupportedQBXMLVersion>5.0</SupportedQBXMLVersion><SupportedQBXMLVersion>6.0</SupportedQBXMLVersion><SupportedQBXMLVersion>7.0</SupportedQBXMLVersion><SupportedQBXMLVersion>8.0</SupportedQBXMLVersion><SupportedQBXMLVersion>9.0</SupportedQBXMLVersion><SupportedQBXMLVersion>10.0</SupportedQBXMLVersion><SupportedQBXMLVersion>11.0</SupportedQBXMLVersion><SupportedQBXMLVersion>12.0</SupportedQBXMLVersion><SupportedQBXMLVersion>13.0</SupportedQBXMLVersion><IsAutomaticLogin>false</IsAutomaticLogin><QBFileMode>SingleUser</QBFileMode></HostRet></HostQueryRs><CompanyQueryRs requestID=\"1\" statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><CompanyRet><IsSampleCompany>false</IsSampleCompany><CompanyName>myCompany</CompanyName><LegalCompanyName>myCompany Legal Name</LegalCompanyName><Address><City>P.O. Box 12345</City><State>CA</State><PostalCode>12345</PostalCode><Country>US</Country></Address><AddressBlock><Addr1>P.O. Box 12345</Addr1><Addr2>CA 12345</Addr2></AddressBlock><LegalAddress><Addr1>P.O. Box 12345</Addr1><City>Anytown</City><State>CA</State><PostalCode>12345</PostalCode><Country>US</Country></LegalAddress><Phone>800-123-4567</Phone><Email>myname@mydomain.com</Email><FirstMonthFiscalYear>January</FirstMonthFiscalYear><FirstMonthIncomeTaxYear>January</FirstMonthIncomeTaxYear><CompanyType>InformationTechnologyComputersSoftware</CompanyType><EIN>12-3456789</EIN><TaxForm>Form1120</TaxForm><SubscribedServices><Service><Name>QuickBooks Online Banking</Name><Domain>banking.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing</Name><Domain>billing.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Level 1 Service</Name><Domain>qbob1.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Level 2 Service</Name><Domain>qbob2.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Payment Service</Name><Domain>qbobpay.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Bill Payment</Name><Domain>billpay.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Online Billing Paper Mailing Service</Name><Domain>qbobpaper.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Payroll Service</Name><Domain>payroll.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Basic Payroll Service</Name><Domain>payrollbsc.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Basic Disk Payroll Service</Name><Domain>payrollbscdisk.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Deluxe Payroll Service</Name><Domain>payrolldlx.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>QuickBooks Premier Payroll Service</Name><Domain>payrollprm.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Basic Plus Federal</Name><Domain>basic_plus_fed.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Basic Plus Federal and State</Name><Domain>basic_plus_fed_state.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Basic Plus Direct Deposit</Name><Domain>basic_plus_dd.qb</Domain><ServiceStatus>Never</ServiceStatus></Service><Service><Name>Merchant Account Service</Name><Domain>mas.qbn</Domain><ServiceStatus>Never</ServiceStatus></Service></SubscribedServices><AccountantCopy><AccountantCopyExists>false</AccountantCopyExists></AccountantCopy><DataExtRet><OwnerID>{512349B1-1111-2222-3333-000DE1813D20}</OwnerID><DataExtName>AppLock</DataExtName><DataExtType>STR255TYPE<yzer/DataExtType><DataExtValue>LOCKED:REDACTED:631234599990000223</DataExtValue></DataExtRet><DataExtRet><OwnerID>{512349B1-1111-2222-3333-000DE1813D20}</OwnerID><DataExtName>FileID</DataExtName><DataExtType>STR255TYPE</DataExtType><DataExtValue>{00000ee-1111-ffff-cccc-5ff123456047}</DataExtValue></DataExtRet></CompanyRet></CompanyQueryRs><PreferencesQueryRs requestID=\"2\" statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><PreferencesRet><AccountingPreferences><IsUsingAccountNumbers>false</IsUsingAccountNumbers><IsRequiringAccounts>true</IsRequiringAccounts><IsUsingClassTracking>false</IsUsingClassTracking><IsUsingAuditTrail>true</IsUsingAuditTrail><IsAssigningJournalEntryNumbers>true</IsAssigningJournalEntryNumbers></AccountingPreferences><FinanceChargePreferences><AnnualInterestRate>0.00</AnnualInterestRate><MinFinanceCharge>0.00</MinFinanceCharge><GracePeriod>0</GracePeriod><IsAssessingForOverdueCharges>false</IsAssessingForOverdueCharges><CalculateChargesFrom>DueDate</CalculateChargesFrom><IsMarkedToBePrinted>false</IsMarkedToBePrinted></FinanceChargePreferences><JobsAndEstimatesPreferences><IsUsingEstimates>true</IsUsingEstimates><IsUsingProgressInvoicing>false</IsUsingProgressInvoicing><IsPrintingItemsWithZeroAmounts>false</IsPrintingItemsWithZeroAmounts></JobsAndEstimatesPreferences><MultiCurrencyPreferences><IsMultiCurrencyOn>false</IsMultiCurrencyOn></MultiCurrencyPreferences><MultiLocationInventoryPreferences><IsMultiLocationInventoryAvailable>false</IsMultiLocationInventoryAvailable><IsMultiLocationInventoryEnabled>false</IsMultiLocationInventoryEnabled></MultiLocationInventoryPreferences><PurchasesAndVendorsPreferences><IsUsingInventory>false</IsUsingInventory><DaysBillsAreDue>10</DaysBillsAreDue><IsAutomaticallyUsingDiscounts>false</IsAutomaticallyUsingDiscounts></PurchasesAndVendorsPreferences><ReportsPreferences><AgingReportBasis>AgeFromDueDate</AgingReportBasis><SummaryReportBasis>Accrual</SummaryReportBasis></ReportsPreferences><SalesAndCustomersPreferences><IsTrackingReimbursedExpensesAsIncome>false</IsTrackingReimbursedExpensesAsIncome><IsAutoApplyingPayments>true</IsAutoApplyingPayments><PriceLevels><IsUsingPriceLevels>true</IsUsingPriceLevels><IsRoundingSalesPriceUp>true</IsRoundingSalesPriceUp></PriceLevels></SalesAndCustomersPreferences><TimeTrackingPreferences><FirstDayOfWeek>Monday</FirstDayOfWeek></TimeTrackingPreferences><CurrentAppAccessRights><IsAutomaticLoginAllowed>false</IsAutomaticLoginAllowed><IsPersonalDataAccessAllowed>false</IsPersonalDataAccessAllowed></CurrentAppAccessRights><ItemsAndInventoryPreferences><EnhancedInventoryReceivingEnabled>false</EnhancedInventoryReceivingEnabled><IsTrackingSerialOrLotNumber>None</IsTrackingSerialOrLotNumber><FIFOEnabled>false</FIFOEnabled><IsRSBEnabled>false</IsRSBEnabled><IsBarcodeEnabled>false</IsBarcodeEnabled></ItemsAndInventoryPreferences></PreferencesRet></PreferencesQueryRs></QBXMLMsgsRs></QBXML>",
 }
 
 SEND_REQUEST_SOAP_ACTION = :sendRequestXML
@@ -189,7 +215,7 @@ SEND_REQUEST_SOAP_ACTION = :sendRequestXML
 
 RECEIVE_RESPONSE_PARAMS = {
   :ticket   => "60676ae302a35ead77c81b16993ef073ff3c930e",
-  :response => "<?xml version=\"1.0\" ?><QBXML><QBXMLMsgsRs><CustomerAddRs statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><CustomerRet><ListID>8000007B-1420967073</ListID><TimeCreated>2015-02-03T07:49:33-05:00</TimeCreated><TimeModified>2015-02-03T07:49:33-05:00</TimeModified><EditSequence>1420967073</EditSequence><Name>mrjoecustomer</Name><FullName>Joseph Customer</FullName><IsActive>true</IsActive><Sublevel>0</Sublevel><Email>joecustomer@gmail.com</Email><Balance>0.00</Balance><TotalBalance>0.00</TotalBalance><AccountNumber>8</AccountNumber><JobStatus>None</JobStatus></CustomerRet></CustomerAddRs></QBXMLMsgsRs></QBXML>", 
+  :response => "<?xml version=\"1.0\" ?><QBXML><QBXMLMsgsRs><CustomerAddRs statusCode=\"0\" statusSeverity=\"Info\" statusMessage=\"Status OK\"><CustomerRet><ListID>8000007B-1420967073</ListID><TimeCreated>2015-02-03T07:49:33-05:00</TimeCreated><TimeModified>2015-02-03T07:49:33-05:00</TimeModified><EditSequence>1420967073</EditSequence><Name>mrjoecustomer</Name><FullName>Joseph Customer</FullName><IsActive>true</IsActive><Sublevel>0</Sublevel><Email>joecustomer@gmail.com</Email><Balance>0.00</Balance><TotalBalance>0.00</TotalBalance><AccountNumber>8</AccountNumber><JobStatus>None</JobStatus></CustomerRet></CustomerAddRs></QBXMLMsgsRs></QBXML>",
   :hresult => nil,
   :message => nil}
 
@@ -203,17 +229,43 @@ RECEIVE_RESPONSE_ERROR_PARAMS = {
 RECEIVE_RESPONSE_SOAP_ACTION = :receiveResponseXML
 
 #-------------------------------------------
+def _controller_env_is_required?
+  # qbwc requires minimum wash_out 0.10.0
+  # wash_out 0.10.0 uses controller env
+  # wash_out 0.11.0 uses request.env
+  WashOut::VERSION == "0.10.0"
+end
+
+#-------------------------------------------
+def _set_controller_env_if_required
+  if _controller_env_is_required?
+    @controller.set_request!(@request) if Rails::VERSION::MAJOR >= 5
+    @controller.env["wash_out.soap_data"] = @request.env["wash_out.soap_data"]
+  end
+end
+
+#-------------------------------------------
 def _simulate_soap_request(http_action, soap_action, soap_params)
 
-  ticket = QBWC::ActiveRecord::Session::QbwcSession.first.ticket
-  wash_out_soap_data = { :Envelope => { :Body => { soap_action => soap_params.update(:ticket => ticket) }}}
+  session = QBWC::ActiveRecord::Session::QbwcSession.first
+  unless session.blank?
+    ticket = session.ticket
+    soap_params = soap_params.update(:ticket => ticket)
+  end
+
+  wash_out_soap_data = { :Envelope => { :Body => { soap_action => soap_params }}}
 
   # http://twobitlabs.com/2010/09/setting-request-headers-in-rails-functional-tests/
   @request.env["wash_out.soap_action"]  = soap_action.to_s
   @request.env["wash_out.soap_data"]    = wash_out_soap_data
-  @controller.env["wash_out.soap_data"] = @request.env["wash_out.soap_data"]
+  _set_controller_env_if_required
 
-  post http_action, use_route: :qbwc_action
+  if Rails::VERSION::MAJOR <= 4
+    post http_action, use_route: :qbwc_action
+  else
+    post http_action, params: { use_route: :qbwc_action }
+  end
+
 end
 
 #-------------------------------------------
@@ -221,7 +273,7 @@ def _authenticate
   # http://twobitlabs.com/2010/09/setting-request-headers-in-rails-functional-tests/
   @request.env["wash_out.soap_action"]  = AUTHENTICATE_SOAP_ACTION.to_s
   @request.env["wash_out.soap_data"]    = AUTHENTICATE_WASH_OUT_SOAP_DATA
-  @controller.env["wash_out.soap_data"] = @request.env["wash_out.soap_data"]
+  _set_controller_env_if_required
 
   process(:authenticate)
 end
@@ -241,7 +293,7 @@ def _authenticate_wrong_password
   bad_password_soap_data[:Envelope][:Body][AUTHENTICATE_SOAP_ACTION][:strPassword] = 'something wrong'
   @request.env["wash_out.soap_action"]  = AUTHENTICATE_SOAP_ACTION.to_s
   @request.env["wash_out.soap_data"]    = bad_password_soap_data
-  @controller.env["wash_out.soap_data"] = @request.env["wash_out.soap_data"]
+  _set_controller_env_if_required
 
   process(:authenticate)
 end

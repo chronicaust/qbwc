@@ -18,7 +18,7 @@ class QBWC::Session
     @iterator_id = nil
     @account_id = account_id
     @initial_job_count = pending_jobs.length
-    @ticket = ticket || Digest::SHA1.hexdigest("#{Rails.application.config.secret_token}#{Time.now.to_i}")
+    @ticket = ticket || Digest::SHA1.hexdigest("#{Rails.application.config.try(:secret_key_base) || Rails.application.config.try(:secret_token)}#{SecureRandom.uuid}")
 
     @@session = self
     reset(ticket.nil?)
@@ -61,8 +61,9 @@ class QBWC::Session
     request = self.next_request
     if request && self.iterator_id.present?
       request = request.to_hash
+      requestID = request.values.first["xml_attributes"]["requestID"]
       request.delete('xml_attributes')
-      request.values.first['xml_attributes'] = {'iterator' => 'Continue', 'iteratorID' => self.iterator_id}
+      request.values.first['xml_attributes'] = {'iterator' => 'Continue', 'iteratorID' => self.iterator_id, 'requestID' => requestID}
       request = QBWC::Request.new(request)
     end
     request
