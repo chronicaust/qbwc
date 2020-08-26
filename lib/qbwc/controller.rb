@@ -10,7 +10,7 @@ module QBWC
     def self.included(base)
       base.class_eval do
         include WashOut::SOAP
-        skip_before_filter :_parse_soap_parameters, :_authenticate_wsse, :_map_soap_parameters, :only => :qwc, raise: false
+        skip_before_action :_parse_soap_parameters, :_authenticate_wsse, :_map_soap_parameters, :only => :qwc, raise: false
         before_filter :get_session, :except => [:qwc, :authenticate, :_generate_wsdl]
         after_filter :save_session, :except => [:qwc, :authenticate, :_generate_wsdl, :close_connection, :connection_error]
 
