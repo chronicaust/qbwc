@@ -11,8 +11,8 @@ module QBWC
       base.class_eval do
         include WashOut::SOAP
         skip_before_action :_parse_soap_parameters, :_authenticate_wsse, :_map_soap_parameters, :only => :qwc, raise: false
-        before_filter :get_session, :except => [:qwc, :authenticate, :_generate_wsdl]
-        after_filter :save_session, :except => [:qwc, :authenticate, :_generate_wsdl, :close_connection, :connection_error]
+        before_action :get_session, :except => [:qwc, :authenticate, :_generate_wsdl]
+        after_action :save_session, :except => [:qwc, :authenticate, :_generate_wsdl, :close_connection, :connection_error]
 
         # wash_out changed the format of app/views/wash_with_soap/rpc/response.builder in commit
         # https://github.com/inossidabile/wash_out/commit/24a77f4a3d874562732c6e8c3a30e8defafea7cb
