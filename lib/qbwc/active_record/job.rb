@@ -1,6 +1,6 @@
 class QBWC::ActiveRecord::Job < QBWC::Job
   class QbwcJob < ActiveRecord::Base
-    validates :name, :uniqueness => { :case_sensitive => true }, :presence => true
+    validates :name, :uniqueness => true, :presence => true
     serialize :requests
     serialize :request_index
     serialize :data
@@ -14,11 +14,10 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   # Creates and persists a job.
   def self.add_job(name, enabled, company, worker_class, requests, data, account_id)
     worker_class = worker_class.to_s
-    ar_job = find_ar_job_with_name(name).first_or_initialize
+    ar_job = find_ar_job_with_name_and_account(name, account_id).first_or_initialize
     ar_job.company = company
     ar_job.enabled = enabled
     ar_job.worker_class = worker_class
-    ar_job.account_id = account_id
     ar_job.save!
 
     jb = self.new(name, enabled, company, worker_class, requests, data, account_id)
@@ -40,31 +39,50 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   end
 
   def self.find_job_with_name_and_account(name, account_id)
-    jobs = QbwcJob.where(:account_id => account_id)
-    j = jobs.where(:name => name).first
-    j = j.to_qbwc_job unless j.nil?
-    return j
+    QbwcJob.find_by(
+      account_id: account_id,
+      name: name,
+      enabled: true
+    )&.to_qbwc_job
   end
 
   def self.find_ar_job_with_name(name)
-    QbwcJob.where(:name => name)
+    QbwcJob.where(
+      name: name,
+      enabled: true
+    )
+  end
+
+  def self.find_ar_job_with_name_and_account(name, account_id)
+    QbwcJob.where(
+      account_id: account_id,
+      name: name,
+      enabled: true
+    )
   end
 
   def find_ar_job
-    self.class.find_ar_job_with_name(name)
+    if self.account_id.present?
+      self.class.find_ar_job_with_name_and_account(name, account_id)
+    else 
+      self.class.find_ar_job_with_name(name)
+    end
   end
 
   def self.delete_job_with_name(name)
-    j = find_ar_job_with_name(name).first
-    j.destroy unless j.nil?
+    find_ar_job_with_name(name)&.first&.destroy
+  end
+
+  def self.delete_job_with_name_and_account(name, account_id)
+    find_ar_job_with_name_and_account(name, account_id)&.first&.destroy
   end
 
   def enabled=(value)
-    find_ar_job.update_all(:enabled => value)
+    find_ar_job.update_all(enabled: value)
   end
 
   def enabled?
-    find_ar_job.where(:enabled => true).exists?
+    find_ar_job.where(enabled: true).exists?
   end
 
   def requests(session = QBWC::Session.get)
@@ -74,7 +92,7 @@ class QBWC::ActiveRecord::Job < QBWC::Job
 
   def set_requests(session, requests)
     super
-    find_ar_job.update_all(:requests => @requests)
+    find_ar_job.update_all(requests: @requests)
   end
 
   def requests_provided_when_job_added
@@ -82,7 +100,7 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   end
 
   def requests_provided_when_job_added=(value)
-    find_ar_job.update_all(:requests_provided_when_job_added => value)
+    find_ar_job.update_all(requests_provided_when_job_added: value)
     super
   end
 
@@ -91,7 +109,7 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   end
 
   def data=(r)
-    find_ar_job.update_all(:data => r)
+    find_ar_job.update_all(data: r)
     super
   end
 
@@ -114,16 +132,19 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   def reset
     super
     job = find_ar_job
-    job.update_all :request_index => {}
-    job.update_all(:requests => {}) unless self.requests_provided_when_job_added
+    job.update_all(request_index: {})
+    job.update_all(requests: {}) unless self.requests_provided_when_job_added
   end
 
   def self.list_jobs
-    QbwcJob.all.map {|ar_job| ar_job.to_qbwc_job}
+    QbwcJob.all.map(&:to_qbwc_job)
   end
 
   def self.list_jobs_with_account_id(account_id)
-    QbwcJob.where(:account_id => account_id).map {|ar_job| ar_job.to_qbwc_job}
+    QbwcJob.where(
+      account_id: account_id,
+      enabled: true
+    ).map(&:to_qbwc_job)
   end
 
   def self.clear_jobs
