@@ -1,6 +1,6 @@
 class QBWC::Job
 
-  attr_reader :name, :company, :worker_class
+  attr_reader :name, :company, :worker_class, :account_id
 
   def initialize(name, enabled, company, worker_class, requests = [], data = nil, account_id = nil)
     @name = name
