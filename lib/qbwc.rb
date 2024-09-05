@@ -68,7 +68,7 @@ module QBWC
 
   # Some log lines contain sensitive information
   mattr_accessor :log_requests_and_responses
-  @@log_requests_and_responses = CONFIG[:QBWC_LOGGING].nil? ? true : CONFIG[:QBWC_LOGGING]
+  @@log_requests_and_responses = ENV['QBWC_LOGGING'].nil? ? true : ENV['QBWC_LOGGING']
 
   class << self
 
