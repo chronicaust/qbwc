@@ -3,6 +3,7 @@ class QBWC::ActiveRecord::Job < QBWC::Job
     validates :name, :uniqueness => true, :presence => true
     serialize :requests
     serialize :request_index
+    serialize :data
 
     def to_qbwc_job
       QBWC::ActiveRecord::Job.new(name, enabled, company, worker_class, requests, data, account_id)
