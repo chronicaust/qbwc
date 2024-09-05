@@ -3,10 +3,10 @@ class QBWC::ActiveRecord::Session < QBWC::Session
     attr_accessible :company, :ticket, :user, :account_id unless Rails::VERSION::MAJOR >= 4
   end
 
-	def self.get(ticket)
-		session = QbwcSession.find_by_ticket(ticket)
+  def self.get(ticket)
+    session = QbwcSession.find_by_ticket(ticket)
     self.new(session) if session
-	end
+  end
 
   def initialize(session_or_user = nil, company = nil, ticket = nil, account_id = nil)
     if session_or_user.is_a? QbwcSession
