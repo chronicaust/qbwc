@@ -68,7 +68,7 @@ module QBWC
 
   # Some log lines contain sensitive information
   mattr_accessor :log_requests_and_responses
-  @@log_requests_and_responses = Rails.env == 'production' ? false : true
+  @@log_requests_and_responses = CONFIG[:QBWC_LOGGING].nil? ? true : CONFIG[:QBWC_LOGGING]
 
   class << self
 
@@ -99,8 +99,8 @@ module QBWC
 
     def pending_jobs(company, session = QBWC::Session.get, account_id)
       js = jobs(account_id)
-      QBWC.logger.info "#{js.length} jobs exist, checking for pending jobs for account '#{account_id}'."
-      storage_module::Job.sort_in_time_order(js.select {|job| job.company == company && job.pending?(session)})
+      QBWC.logger.info "#{js.length} jobs exist for account '#{account_id}'."
+      js.select { |job| job.pending?(session) }
     end
 
     def set_session_initializer(&block)
