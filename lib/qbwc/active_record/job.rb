@@ -123,8 +123,8 @@ class QBWC::ActiveRecord::Job < QBWC::Job
         jb.request_index[session.key] = index
         jb.save
       rescue => ex
-        Rails.logger.error(ex.message)
-        Rails.logger.error(ex.backtrace)
+        QBWC.logger.info("ERROR in set_request_index: #{ex.message}")
+        QBWC.logger.info("ERROR in set_request_index: #{ex.backtrace}")
         jb.enabled = false
       end
     end
