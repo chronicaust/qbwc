@@ -119,8 +119,14 @@ class QBWC::ActiveRecord::Job < QBWC::Job
 
   def set_request_index(session, index)
     find_ar_job.each do |jb|
-      jb.request_index[session.key] = index
-      jb.save
+      begin
+        jb.request_index[session.key] = index
+        jb.save
+      rescue => ex
+        Rails.logger.error(ex.message)
+        Rails.logger.error(ex.backtrace)
+        jb.enabled = false
+      end
     end
   end
 
