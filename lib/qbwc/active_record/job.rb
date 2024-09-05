@@ -92,8 +92,10 @@ class QBWC::ActiveRecord::Job < QBWC::Job
 
   def set_requests(session, requests)
     super
-    find_ar_job.update_all(requests: @requests)
+    find_ar_job
+    find_ar_job.update_all(requests: requests)
   end
+
 
   def requests_provided_when_job_added
     find_ar_job.pluck(:requests_provided_when_job_added).first
@@ -120,12 +122,11 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   def set_request_index(session, index)
     find_ar_job.each do |jb|
       begin
+        jb.request_index = {} if jb.request_index.nil?
         jb.request_index[session.key] = index
         jb.save
       rescue => ex
-        QBWC.logger.info("ERROR in set_request_index: #{ex.message}")
-        QBWC.logger.info("ERROR in set_request_index: #{ex.backtrace}")
-        jb.enabled = false
+        jb.disable
       end
     end
   end
