@@ -92,7 +92,6 @@ class QBWC::ActiveRecord::Job < QBWC::Job
 
   def set_requests(session, requests)
     super
-    QBWC.logger.info(@requests.to_json)
     find_ar_job&.update_all(requests: @requests)
   end
 
