@@ -40,24 +40,24 @@ class QBWC::ActiveRecord::Job < QBWC::Job
 
   def self.find_job_with_name_and_account(name, account_id)
     QbwcJob.find_by(
-      account_id: account_id,
-      name: name,
-      enabled: true
+      'qbwc_jobs.account_id': account_id,
+      'qbwc_jobs.name': name,
+      'qbwc_jobs.enabled': true
     )&.to_qbwc_job
   end
 
   def self.find_ar_job_with_name(name)
     QbwcJob.where(
-      name: name,
-      enabled: true
+      'qbwc_jobs.name': name,
+      'qbwc_jobs.enabled': true
     )
   end
 
   def self.find_ar_job_with_name_and_account(name, account_id)
     QbwcJob.where(
-      account_id: account_id,
-      name: name,
-      enabled: true
+      'qbwc_jobs.account_id': account_id,
+      'qbwc_jobs.name': name,
+      'qbwc_jobs.enabled': true
     )
   end
 
@@ -78,44 +78,44 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   end
 
   def enabled=(value)
-    find_ar_job.update_all(enabled: value)
+    find_ar_job&.update_all(enabled: value)
   end
 
   def enabled?
-    find_ar_job.where(enabled: true).exists?
+    find_ar_job&.where(enabled: true).exists?
   end
 
   def requests(session = QBWC::Session.get)
-    @requests = find_ar_job.pluck(:requests).first
+    @requests = find_ar_job&.pick(:requests)
     super
   end
 
   def set_requests(session, requests)
     super
-    find_ar_job.update_all(requests: @requests)
+    find_ar_job&.update_all(requests: @requests)
   end
 
 
   def requests_provided_when_job_added
-    find_ar_job.pluck(:requests_provided_when_job_added).first
+    find_ar_job&.pick(:requests_provided_when_job_added)
   end
 
   def requests_provided_when_job_added=(value)
-    find_ar_job.update_all(requests_provided_when_job_added: value)
+    find_ar_job&.update_all(requests_provided_when_job_added: value)
     super
   end
 
   def data
-    find_ar_job.pluck(:data).first
+    find_ar_job&.pick(:data)
   end
 
   def data=(r)
-    find_ar_job.update_all(data: r)
+    find_ar_job&.update_all(data: r)
     super
   end
 
   def request_index(session)
-    (find_ar_job.pluck(:request_index).first || {})[session.key] || 0
+    (find_ar_job.pick(:request_index) || {})[session.key] || 0
   end
 
   def set_request_index(session, index)
@@ -132,25 +132,30 @@ class QBWC::ActiveRecord::Job < QBWC::Job
 
   def advance_next_request(session)
     nr = request_index(session)
-    set_request_index session, nr + 1
+    set_request_index(session, nr + 1)
   end
 
   def reset
     super
     job = find_ar_job
-    job.update_all(request_index: {})
-    job.update_all(requests: {}) unless self.requests_provided_when_job_added
+    if job.present?
+      if self.requests_provided_when_job_added
+        job.update_all(request_index: {})
+      else 
+        job.update_all(request_index: {}, requests: {})
+      end
+    end
   end
 
   def self.list_jobs
-    QbwcJob.all.map(&:to_qbwc_job)
+    QbwcJob.all&.map(&:to_qbwc_job)
   end
 
   def self.list_jobs_with_account_id(account_id)
     QbwcJob.where(
-      account_id: account_id,
-      enabled: true
-    ).map(&:to_qbwc_job)
+      'qbwc_jobs.account_id': account_id,
+      'qbwc_jobs.enabled': true
+    )&.map(&:to_qbwc_job)
   end
 
   def self.clear_jobs
