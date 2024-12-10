@@ -100,7 +100,7 @@ module QBWC
     def pending_jobs(company, session = QBWC::Session.get, account_id)
       js = jobs(account_id)
       QBWC.logger.info "#{js.length} jobs exist for account '#{account_id}'."
-      js.select { |job| job.pending?(session) }
+      js.select { |job| job.fast_pending?(session) }
     end
 
     def set_session_initializer(&block)
