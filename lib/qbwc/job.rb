@@ -54,6 +54,13 @@ class QBWC::Job
     return sr
   end
 
+  def fast_pending?(session)
+    sr = worker.should_run?(self, session, @data)
+    QBWC.logger.info "Job '#{name}' should_run?: #{sr}."
+    return sr
+  end
+
+  
   def enabled?
     @enabled
   end
