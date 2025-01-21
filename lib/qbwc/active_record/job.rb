@@ -28,7 +28,7 @@ class QBWC::ActiveRecord::Job < QBWC::Job
       ar_job.update_attribute :requests, request_hash
     end
     jb.requests_provided_when_job_added = (! requests.nil? && ! requests.empty?)
-    jb.data = data
+    jb.set_data = data
     jb
   end
 
@@ -109,19 +109,8 @@ class QBWC::ActiveRecord::Job < QBWC::Job
     find_ar_job&.pick(:data)
   end
 
-  def data=(r)
-    if Thread.current[:qbwc_data_set] != true
-      Thread.current[:qbwc_data_set] = true
-      begin
-        _jbs = find_ar_job&.where&.not(name: self.name)
-        if _jbs.present?
-          (_jbs.update_all(data: r) rescue r)
-        end
-      rescue => ex
-        Rails.logger.error "Error in data=(r) in qbwc/active_record/job.rb"
-      end
-    end
-    super
+  def set_data=(r)
+    find_ar_job&.update_all(data: r)
   end
 
   def request_index(session)
