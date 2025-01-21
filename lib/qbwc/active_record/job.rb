@@ -110,7 +110,17 @@ class QBWC::ActiveRecord::Job < QBWC::Job
   end
 
   def data=(r)
-    find_ar_job&.update_all(data: r)
+    if Thread.current[:qbwc_data_set] != true
+      Thread.current[:qbwc_data_set] = true
+      begin
+        _jbs = find_ar_job&.where&.not(name: self.name)
+        if _jbs.present?
+          (_jbs.update_all(data: r) rescue r)
+        end
+      rescue => ex
+        Rails.logger.error "Error in data=(r) in qbwc/active_record/job.rb"
+      end
+    end
     super
   end
 
