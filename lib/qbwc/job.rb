@@ -25,6 +25,7 @@ class QBWC::Job
     QBWC.logger.info "Processing response."
     request_list = requests(session)
     completed_request = request_list[request_index(session)] if request_list
+    QBWC.logger.info "Processing response. - advance: #{advance}"
     advance_next_request(session) if advance
     QBWC.logger.info "Job '#{name}' received response: '#{qbxml_response}'." if QBWC.log_requests_and_responses
     worker.handle_response(response, session, self, completed_request, data)
@@ -85,7 +86,11 @@ class QBWC::Job
   end
 
   def data
-    @data
+    if @data.present? && @data.is_a?(Array) && [Hash, JSON].include?(@data.first.class)
+      @data&.map(&:with_indifferent_access)
+    else
+      @data
+    end
   end
 
   def data=(d)
