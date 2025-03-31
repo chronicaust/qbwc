@@ -1,6 +1,20 @@
 class QBWC::ActiveRecord::Session < QBWC::Session
   class QbwcSession < ActiveRecord::Base
+    belongs_to :account
+    belongs_to :db_user, primary_key: :email, foreign_key: :user, class_name: "User"
+
     attr_accessible :company, :ticket, :user, :account_id unless Rails::VERSION::MAJOR >= 4
+
+    after_save_commit -> do
+      Rails.logger.info "Broadcasting QB Session Event for Account #{account_id} and Session ID #{id} progress #{progress}%"
+      broadcast_prepend_to("qb_web_connector_session", partial: "/events/qb_web_connector_session", locals: { qb_session: self }, target: "progressDivScript")
+    end
+
+    before_destroy -> do
+      self.progress = 0
+      Rails.logger.info "Broadcasting QB Session Event for Account #{account_id} and Session ID #{id} progress #{progress}%"
+      broadcast_prepend_to("qb_web_connector_session", partial: "/events/qb_web_connector_session", locals: { qb_session: self }, target: "progressDivScript")
+    end
   end
 
   def self.get(ticket)
