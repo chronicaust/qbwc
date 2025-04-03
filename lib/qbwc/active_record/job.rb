@@ -4,32 +4,47 @@ class QBWC::ActiveRecord::Job < QBWC::Job
     serialize :requests
     serialize :request_index
     serialize :data
+    belongs_to :qb_workable, polymorphic: true
 
     def to_qbwc_job
-      QBWC::ActiveRecord::Job.new(name, enabled, company, worker_class, requests, data, account_id)
+      QBWC::ActiveRecord::Job.new(name, enabled, company, worker_class, requests, data, account_id, qb_workable)
     end
 
   end
 
   # Creates and persists a job.
-  def self.add_job(name, enabled, company, worker_class, requests, data, account_id)
+  def self.add_job(name, enabled, company, worker_class, requests, data, account_id, qb_workable=nil)
     worker_class = worker_class.to_s
     ar_job = find_ar_job_with_name_and_account(name, account_id).first_or_initialize
     ar_job.company = company
     ar_job.enabled = enabled
     ar_job.worker_class = worker_class
+    ar_job.qb_workable = qb_workable
     ar_job.save!
 
-    jb = self.new(name, enabled, company, worker_class, requests, data, account_id)
+    jb = self.new(name, enabled, company, worker_class, requests, data, account_id, qb_workable)
     unless requests.nil? || requests.empty?
       request_hash = { [nil, company] => [requests].flatten }
 
       jb.requests = request_hash
-      ar_job.update_attribute :requests, request_hash
+      ar_job.update_attribute(:requests, request_hash)
     end
     jb.requests_provided_when_job_added = (! requests.nil? && ! requests.empty?)
     jb.set_data = data
     jb
+  end
+
+
+  def qb_workable
+    find_ar_job&.first&.pick(:qb_workable)
+  end
+
+  def set_qb_workable=(r)
+    find_ar_job&.first&.update(qb_workable: r)
+  end
+
+  def qb_workable=(r)
+    find_ar_job&.first&.update(qb_workable: r)
   end
 
   def self.find_job_with_name(name)

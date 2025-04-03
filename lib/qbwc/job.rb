@@ -1,13 +1,15 @@
 class QBWC::Job
 
-  attr_reader :name, :company, :worker_class, :account_id
+  attr_reader :name, :company, :worker_class, :account_id, :qb_workable
 
-  def initialize(name, enabled, company, worker_class, requests = [], data = nil, account_id = nil)
+  def initialize(name, enabled, company, worker_class, requests = [], data = nil, account_id = nil, qb_workable = nil)
     @name = name
     @enabled = enabled
     @company = company || QBWC.company_file_path
     @worker_class = worker_class
     @data = data
+    @account_id = account_id
+    @qb_workable = qb_workable
 
     default_key = [nil, company]
     requests = [requests].compact unless Hash === requests || Array === requests
@@ -16,6 +18,19 @@ class QBWC::Job
 
     @request_index = { default_key => 0 }
   end
+
+  def account_id
+    @account_id
+  end
+
+  def qb_workable
+    @qb_workable
+  end
+
+  def set_qb_workable=(q)
+    @qb_workable = q
+  end
+
 
   def worker
     worker_class.constantize.new

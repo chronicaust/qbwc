@@ -80,8 +80,8 @@ module QBWC
       storage_module::Job.list_jobs_with_account_id(account_id)
     end
 
-    def add_job(name, enabled = true, company = nil, klass = QBWC::Worker, requests = nil, data = nil, account_id = nil)
-      storage_module::Job.add_job(name, enabled, company, klass, requests, data, account_id)
+    def add_job(name, enabled = true, company = nil, klass = QBWC::Worker, requests = nil, data = nil, account_id = nil, qb_workable = nil)
+      storage_module::Job.add_job(name, enabled, company, klass, requests, data, account_id, qb_workable)
     end
 
     def get_job(name)
